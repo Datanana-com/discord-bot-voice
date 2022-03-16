@@ -1,0 +1,9 @@
+{
+    "require": {
+        "team-reflex/discord-php": "dev-master",
+        "vlucas/phpdotenv": "^5.4"
+    },
+    "scripts": {
+        "serve": "php index.php"
+    }
+}
