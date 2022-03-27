@@ -22,26 +22,35 @@ $discord = new Discord([
     'loadAllMembers' => true,
 ]);
 
+$allowedChannelNames = [];
+$allowedUsernames = [
+    '★ [PT] UpgradeZone.fun | Competitive #1 ★',
+    '★ [PT] UpgradeZone.fun | Competitive #2 ★',
+    '★ [PT] UpgradeZone.fun | Competitive #3 ★',
+    '★ [PT] UpgradeZone.fun | Retakes #1 ★',
+    '★ [PT] UpgradeZone.fun | Retakes #2 ★',
+    '★ [PT] UpgradeZone.fun | Retakes #3 ★',
+];
+
 $discord->on(
     'ready',
-    function (Discord $discord) {
+    function (Discord $discord) use ($allowedUsernames) {
         $log = $discord->getLogger();
         $log->info('Bot is ready!');
-        $loop = $discord->getLoop();
 
-        $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($log, $loop) {
+        $discord->on(Event::MESSAGE_CREATE, function (Message $message) use ($log, $allowedUsernames) {
             $log->info('Message created!');
             $log->info('Username: ' . $message->author->username);
             $log->info('Channel: ' . $message->channel->name);
 
             if (
-                $message->author->username === env('DISCORD_BOT_NAME', 'TestingDevBot')
-                || $message->channel->name !== env('DISCORD_CHANNEL_ID', 'sky-testing-bot')
+                $message->author->bot
+                && $message->author->id === env('DISCORD_CLIENT_ID')
             ) {
                 return;
             }
 
-            if ($message->content === '/clear') {
+            if ($message->content === '/clear' && env('DISCORD_COMMAND_CLEAR', false)) {
                 $log->info('Clearing channel...');
                 $channel = $message->channel;
                 $content = $message->content;
@@ -49,6 +58,11 @@ $discord->on(
                 $amount = explode(' ', $content)[1] ?? 10;
 
                 $channel->limitDelete($amount);
+                return;
+            }
+
+            if (!in_array($message->author->username, $allowedUsernames) && env('APP_ENV', 'prd') === 'prd') {
+                $log->info('User not allowed! <' . $message->author->username . '>');
                 return;
             }
 
@@ -65,7 +79,7 @@ $discord->on(
                          * @var Member $user
                          */
                         $user = $reactions->last()->user;
-                        $message->reply('This report has been claimed by ' . $user);
+                        $message->reply('This report has been claimed by ' . $user . '!');
                         // TODO: Send count +1 to the api to update the count for the mod
                     } else {
                         // Report expired
@@ -77,20 +91,20 @@ $discord->on(
             );
         });
 
-        $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $messageReaction, Discord $discord) {
-            if ($messageReaction->user->username === env('DISCORD_BOT_NAME', 'TestingDevBot')) {
+        $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $messageReaction) use ($log) {
+            if ($messageReaction->user->username === env('DISCORD_CLIENT_ID')) {
                 return;
             }
 
-            echo "Reaction added by \"{$messageReaction->user->username}\"", PHP_EOL;
+            $log->info("Reaction added by \"{$messageReaction->user->username}\"");
         });
 
-        $discord->on(Event::MESSAGE_REACTION_REMOVE, function (MessageReaction $messageReaction, Discord $discord) {
-            if ($messageReaction->user->username === env('DISCORD_BOT_NAME', 'TestingDevBot')) {
+        $discord->on(Event::MESSAGE_REACTION_REMOVE, function (MessageReaction $messageReaction) use ($log) {
+            if ($messageReaction->user->username === env('DISCORD_CLIENT_ID')) {
                 return;
             }
 
-            echo "Reaction removed by \"{$messageReaction->user->username}\"", PHP_EOL;
+            $log->info("Reaction removed by \"{$messageReaction->user->username}\"");
         });
     }
 );
