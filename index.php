@@ -1,34 +1,20 @@
 <?php
 
-include 'vendor/autoload.php';
+require_once 'bootstrap.php';
 
-use App\Test;
-use App\Application;
 use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\Parts\Embed\Embed;
-use Discord\Parts\Guild\Guild;
 use Discord\Parts\User\Member;
 use Discord\WebSockets\Intents;
 use Discord\Parts\Channel\Message;
-use Discord\Builders\MessageBuilder;
 use Discord\Parts\WebSockets\MessageReaction;
+use Illuminate\Database\Capsule\Manager as DB;
 
 
 /**
  * @see https://discord.com/developers/docs/intro
  */
-
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
-
-/* Application::run([
-    'token' => env('DISCORD_TOKEN'),
-    #'endpoint' => env('DISCORD_ENDPOINT'),
-    'logger' => true,
-    'intents' => Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::GUILD_MESSAGE_REACTIONS,
-]);
-
-return; */
 
 $discord = new Discord([
     'token' => env('DISCORD_TOKEN'),
@@ -49,11 +35,6 @@ $allowedUsernames = [
 $discord->on(
     'ready',
     function (Discord $discord) use ($allowedUsernames) {
-
-        /* Test::run($discord);
-        return; */
-
-        /* $discord->guilds->get('599261105453268992'); */
 
         $log = $discord->getLogger();
         $log->info('Bot is ready!');

@@ -1,9 +1,20 @@
 {
     "require": {
         "team-reflex/discord-php": "dev-master",
-        "vlucas/phpdotenv": "^5.4"
+        "vlucas/phpdotenv": "^5.4",
+        "symfony/var-dumper": "^5.4",
+        "discord-php/slash": "^1.0",
+        "illuminate/database": "^8.83"
     },
     "scripts": {
         "serve": "php index.php"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "files": [
+            "./helpers/main.php"
+        ]
     }
 }
