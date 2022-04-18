@@ -24,12 +24,12 @@ $discord = new Discord([
 
 $allowedChannelNames = [];
 $allowedUsernames = [
-    '★ [PT] UpgradeZone.fun | Competitive #1 ★',
-    '★ [PT] UpgradeZone.fun | Competitive #2 ★',
-    '★ [PT] UpgradeZone.fun | Competitive #3 ★',
-    '★ [PT] UpgradeZone.fun | Retakes #1 ★',
-    '★ [PT] UpgradeZone.fun | Retakes #2 ★',
-    '★ [PT] UpgradeZone.fun | Retakes #3 ★',
+    '★ [PT] UpgradeZone.fun | Competitive #1 ★' => 'competitives',
+    '★ [PT] UpgradeZone.fun | Competitive #2 ★' => 'competitives',
+    '★ [PT] UpgradeZone.fun | Competitive #3 ★' => 'competitives',
+    '★ [PT] UpgradeZone.fun | Retakes #1 ★' => 'default',
+    '★ [PT] UpgradeZone.fun | Retakes #2 ★' => 'default',
+    '★ [PT] UpgradeZone.fun | Retakes #3 ★' => 'default',
 ];
 
 $discord->on(
@@ -48,16 +48,21 @@ $discord->on(
                 $message->author->bot
                 && $message->author->id === env('DISCORD_CLIENT_ID')
             ) {
+                $log->info('Bot message, ignoring...');
                 return;
             }
 
             // Commands
             if ($message->content === '/clear' && env('DISCORD_COMMAND_CLEAR', false)) {
-                $log->info('Clearing channel...');
+                // log who called the command
                 $channel = $message->channel;
                 $content = $message->content;
-
                 $amount = explode(' ', $content)[1] ?? 10;
+
+                $log->info('Command: /clear ' . $amount);
+                $log->info('Username: ' . $message->author->username);
+                $log->info('Channel: ' . $message->channel->name);
+                $log->info('Clearing channel...');
 
                 $channel->limitDelete($amount);
                 return;
@@ -74,13 +79,11 @@ $discord->on(
 
                 $message->delete()
                     ->done(
-                        function () use ($message, $discord) {
-                            $message->channel->sendEmbed(
-                                (new Embed($discord))
-                                    ->setTitle('⚠️ CS:GO report count done.')
-                                    ->setColor(0xFFC300)
-                            );
-                        }
+                        fn () => $message->channel->sendEmbed(
+                            (new Embed($discord))
+                                ->setTitle('⚠️ CS:GO report count done.')
+                                ->setColor(0xFFC300)
+                        )
                     );
 
                 return;
@@ -88,14 +91,51 @@ $discord->on(
 
             // END Commands
 
-            if (!in_array($message->author->username, $allowedUsernames) && env('APP_ENV', 'prd') === 'prd') {
+            if (
+                !in_array(
+                    $message->author->username,
+                    array_keys($allowedUsernames)
+                )
+                && env('APP_ENV', 'prd') === 'prd'
+            ) {
                 $log->info('User not allowed! <' . $message->author->username . '>');
                 return;
             }
 
             $message->react('✅')->done(
-                function () {
-                    // TODO : Add message id to the BD
+                function () use ($message, $allowedUsernames, $log) {
+                    $connectionNameAccordingToBot = $allowedUsernames[$message->author->username] ?? 'default';
+                    $log->info('Connection name: ' . $connectionNameAccordingToBot);
+
+                    try {
+                        $report = DB::connection($connectionNameAccordingToBot)
+                            ->table('hoyxen_reports')
+                            ->whereNull('discord_message_id')
+                            ->orderBy('time', 'DESC')
+                            ->first();
+
+                        $log->info('Retrieved Report data: ' . json_encode($report));
+                    } catch (\Throwable $th) {
+                        $tracemicrotime = (int) microtime(true);
+                        $log->error('<'. $tracemicrotime .'> Error retrieving Report data: ' . $th->getMessage());
+                        $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                    }
+
+                    try {
+                        $result = DB::connection($connectionNameAccordingToBot)
+                            ->table('hoyxen_reports')
+                            ->where('id', $report->id)
+                            ->update([
+                                'discord_message_id' => $message->id,
+                            ]);
+
+                        $log->info('Update result: ' . json_encode($result));
+                    } catch (\Throwable $th) {
+                        $tracemicrotime = (int) microtime(true);
+                        $log->error('<'. $tracemicrotime .'> Error updating report data: ' . $th->getMessage());
+                        $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                    }
+
                 }
             );
 
@@ -103,20 +143,84 @@ $discord->on(
                 fn (MessageReaction $reaction) => $reaction->emoji->name === '✅',
                 ['time' => 900 * 1000, 'limit' => 2]
             )->done(
-                function ($reactions) use ($message, $log) {
+                function ($reactions) use ($message, $log, $allowedUsernames) {
                     $log->info('Reactions: ' . $reactions->count());
+
+                    $connectionNameAccordingToBot = $allowedUsernames[$message->author->username] ?? 'default';
+                    $log->info('Connection name: ' . $connectionNameAccordingToBot);
                     if ($reactions->count() === 2) {
                         /**
                          * @var Member $user
                          */
                         $user = $reactions->last()->user;
-                        $message->reply('This report has been claimed by ' . $user . '!');
+                        $message->reply("This report has been claimed by $user!");
                         // TODO: Add value of the user to the "claimed by" column in the BD
+                        try {
+                            $report = DB::connection($connectionNameAccordingToBot)
+                                ->table('hoyxen_reports')
+                                ->where('discord_message_id', $message->id)
+                                ->first();
+
+                            $log->info('Retrieved Report data: ' . json_encode($report));
+                        } catch (\Throwable $th) {
+                            $tracemicrotime = (int) microtime(true);
+                            $log->error('<'. $tracemicrotime .'> Error retrieving Report data: ' . $th->getMessage());
+                            $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                        }
+
+                        if (!empty($report)) {
+                            try {
+                                $result = DB::connection($connectionNameAccordingToBot)
+                                    ->table('hoyxen_reports')
+                                    ->where('id', $report->id)
+                                    ->update([
+                                        'discord_claimed_by_user_id' => $user->id,
+                                        'discord_claimed_at' => (int) microtime(true),
+                                    ]);
+
+                                $log->info('Update result: ' . json_encode($result));
+                            } catch (\Throwable $th) {
+                                $tracemicrotime = (int) microtime(true);
+                                $log->error('<'. $tracemicrotime .'> Error updating Report data: ' . $th->getMessage());
+                                $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                            }
+                        }
                     } else {
                         // Report expired
                         $message->deleteReaction(Message::REACT_DELETE_EMOJI, '✅');
-                        $message->react('❌');
                         // TODO: Send post to api to update the report, stating/activating the "not claimed" status
+                        $message->react('❌')->done(
+                            function () use ($message, $connectionNameAccordingToBot, $log) {
+                                try {
+                                    $report = DB::connection($connectionNameAccordingToBot)
+                                        ->table('hoyxen_reports')
+                                        ->where('discord_message_id', $message->id)
+                                        ->first();
+
+                                    $log->info('Retrieved Report data: ' . json_encode($report));
+                                } catch (\Throwable $th) {
+                                    $tracemicrotime = (int) microtime(true);
+                                    $log->error('<'. $tracemicrotime .'> Error retrieving Report data: ' . $th->getMessage());
+                                    $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                                }
+
+                                try {
+                                    $result = DB::connection($connectionNameAccordingToBot)
+                                        ->table('hoyxen_reports')
+                                        ->where('id', $report->id)
+                                        ->update([
+                                            'discord_claimed_by_user_id' => 0,
+                                            'discord_claimed_at' => (int) microtime(true),
+                                        ]);
+
+                                    $log->info('Update result: ' . json_encode($result));
+                                } catch (\Throwable $th) {
+                                    $tracemicrotime = (int) microtime(true);
+                                    $log->error('<'. $tracemicrotime .'> Error updating Report data: ' . $th->getMessage());
+                                    $log->error('<'. $tracemicrotime .'> Trace: ' . $th->getTraceAsString());
+                                }
+                            }
+                        );
                     }
                 }
             );
