@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App;
 
 use Discord\Discord;
+use ReflectionClass;
 use App\Events\EventAbstract;
 use Discord\WebSockets\Event;
+use App\Exceptions\EventNotFoundException;
 
-abstract class Application
+class Application
 {
-
-
     /**
      * @var Discord
      */
-    protected $discord;
+    public $discord;
 
     /**
      * Initializes the Application
@@ -26,9 +26,7 @@ abstract class Application
     {
         $this->discord = new Discord($options);
 
-        $this->events = $this->getFolderClasses('events');
-        $this->commands = $this->getFolderClasses('commands');
-
+        $this->prepareEventClasses();
     }
 
     /**
@@ -59,6 +57,11 @@ abstract class Application
         );
     }
 
+    /**
+     * Prepares the event classes.
+     *
+     * @return void
+     */
     public function prepareEventClasses(): void
     {
         $events = $this->getFolderClasses('events');
@@ -74,29 +77,40 @@ abstract class Application
             Event::MESSAGE_REACTION_REMOVE_EMOJI,
         ];
 
+        # Retrieves every event name from the constants from the \Discord\WebSockets\Event class
+        $allowedEvents = (new ReflectionClass(Event::class))->getConstants();
+
         foreach ($events as $event) {
+            if ($event === 'EventAbstract') {
+                continue;
+            }
+
             // Transforms the event class to the event name
             // e.g. MessageCreate => MESSAGE_CREATE
             $eventClass = $event;
             $eventName = strtoupper(snake($event));
 
-            if (!in_array($event, $messageEvents)) {
+            if (!in_array($eventName, $allowedEvents)) {
                 throw new EventNotFoundException($event);
             }
 
-            /**
-             * @var EventAbstract $eventClassObject
-             */
-            $eventClassObject = new $eventClass();
-
-            $eventClassObject->getTerminatableFunctions();
-            $eventClassObject->getNonTerminatableFunctions();
+            $this->handleEvents($eventName, "\\App\\Events\\$eventClass");
         }
     }
-    
 
-    public function getAvailableMessageEvents()
+    /**
+     * Handles the events.
+     *
+     * @param string $eventName
+     * @param string $eventClass
+     * @return void
+     */
+    public function handleEvents($eventName, $eventClass)
     {
-        $this->allowed
+        $eventClass = new $eventClass();
+
+        $this->discord->on($eventName, function ($object) use ($eventClass) {
+            $eventClass->handle($object);
+        });
     }
 }

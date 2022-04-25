@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Events;
 
 use Exception;
+use App\Exceptions\EventFunctionNotFoundException;
 
 abstract class EventAbstract
 {
@@ -21,6 +22,13 @@ abstract class EventAbstract
      * @var null|array[string]
      */
     protected ?array $nonTerminatableFunctions;
+
+    /**
+     * The event that is being handled.
+     *
+     * @var object
+     */
+    public $eventData;
 
     /**
      * Retrieves the list of functions that will be called when the event is called, but will not terminate the request.
@@ -45,11 +53,16 @@ abstract class EventAbstract
     /**
      * Handles the order of the events.
      *
-     * @return void
+     * @return bool|void
      */
-    public function handle()
+    public function handle($eventData)
     {
+        $this->eventData = $eventData;
+
         $this->handleNonTerminatables();
+        if ($this->handleTerminatables()) {
+            return true;
+        }
     }
 
     /**
@@ -59,9 +72,13 @@ abstract class EventAbstract
      */
     public function handleNonTerminatables()
     {
-        foreach ($this->nonTerminatableFunctions as $function) {
+        foreach ($this->nonTerminatableFunctions ?? [] as $function) {
             try {
-                $this->$function();
+                if (method_exists($this, $function)) {
+                    $this->$function($this->eventData);
+                } else {
+                    throw new EventFunctionNotFoundException("The function $function does not exist.");
+                }
             } catch (Exception $e) {
                 // Should log the exception
                 return false;
@@ -81,19 +98,30 @@ abstract class EventAbstract
      */
     public function handleTerminatables()
     {
-        foreach ($this->terminatableFunctions as $function) {
+        foreach ($this->terminatableFunctions ?? [] as $function) {
             try {
-                // Should log the event that is going to be processed
-                if ($this->$function()) {
-                    // Should log the terminatable event that was processed
-                    return true;
+                if (method_exists($this, $function)) {
+                    // Should log the event that is going to be processed
+                    $returnValue = $this->$function($this->eventData);
+
+                    if ($returnValue === true) {
+                        // Should log the event that was processed
+                        return true;
+                    } elseif ($returnValue === false) {
+                        // Should log the event that wasn't processed
+                        return false;
+                    }
+                } else {
+                    // Should log the event that wasn't processed
+                    throw new EventFunctionNotFoundException("The function $function does not exist.");
                 }
             } catch (Exception $e) {
                 // Should log the exception
-                return false;
+                return true;
             }
 
             // Should log the non terminatable event that was processed
         }
     }
+
 }
