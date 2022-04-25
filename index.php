@@ -24,12 +24,13 @@ $discord = new Discord([
 
 $allowedChannelNames = [];
 $allowedUsernames = [
-    '★ [PT] UpgradeZone.fun | Competitive #1 ★' => 'competitives',
-    '★ [PT] UpgradeZone.fun | Competitive #2 ★' => 'competitives',
-    '★ [PT] UpgradeZone.fun | Competitive #3 ★' => 'competitives',
-    '★ [PT] UpgradeZone.fun | Retakes #1 ★' => 'default',
-    '★ [PT] UpgradeZone.fun | Retakes #2 ★' => 'default',
-    '★ [PT] UpgradeZone.fun | Retakes #3 ★' => 'default',
+    '★ [PT] UpgradeZone.net | Competitive #1 ★' => 'competitives',
+    '★ [PT] UpgradeZone.net | Competitive #2 ★' => 'competitives',
+    '★ [PT] UpgradeZone.net | Competitive #3 ★' => 'competitives',
+    '★ [PT] UpgradeZone.net | Retakes #1 ★' => 'default',
+    '★ [PT] UpgradeZone.net | Retakes #2 ★' => 'default',
+    '★ [PT] UpgradeZone.net | Retakes #3 ★' => 'default',
+    '★ [PT] UpgradeZone.net | AWP MAPS ★' => 'default',
 ];
 
 $discord->on(
