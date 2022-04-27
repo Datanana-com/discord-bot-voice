@@ -15,7 +15,7 @@ class Application
     /**
      * @var Discord
      */
-    public $discord;
+    public Discord $discord;
 
     /**
      * Initializes the Application
@@ -27,6 +27,11 @@ class Application
         $this->discord = new Discord($options);
 
         $this->prepareEventClasses();
+
+        $this->discord->on(
+            'ready',
+            fn (Discord $discord) => $discord->getLogger()->info('Bot is ready!')
+        );
     }
 
     /**
@@ -92,13 +97,13 @@ class Application
      */
     public function handleEvents(string $eventName, string $eventClass): void
     {
-        $parentClass = get_parent_class();
+        $parentClass = get_parent_class($eventClass);
         $parentMethods = [];
         if ($parentClass) {
             $parentMethods = get_class_methods($parentClass);
         }
 
-        $childMethods = get_class_methods(self::class);
+        $childMethods = get_class_methods($eventClass);
 
         // Retrieves the childs methods by removing the parent methods
         $childMethodsToRun = array_diff($childMethods, $parentMethods);
@@ -114,7 +119,7 @@ class Application
          */
         $this->discord->on(
             $eventName,
-            fn ($event) => (new $eventClass($eventName, $childMethodsToRun))->handle($event)
+            fn ($event, Discord $discord) => (new $eventClass($event, $discord, $childMethodsToRun))->handle($event)
         );
     }
 }

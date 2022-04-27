@@ -6,6 +6,7 @@ namespace App;
 
 use Exception;
 use App\Exceptions\EventFunctionNotFoundException;
+use Discord\Discord;
 
 abstract class EventAbstract
 {
@@ -13,10 +14,12 @@ abstract class EventAbstract
      * Initializes the EventAbstract's data
      *
      * @param object $eventData The event object to handle data from
+     * @param Discord $discord The Discord client
      * @param array $executableMethods The list of methods to execute
      */
     public function __construct(
         public object $eventData,
+        public Discord $discord,
         private array $executableMethods = [],
     ) { }
 
@@ -50,9 +53,10 @@ abstract class EventAbstract
      * 2. If the function returns `false` or `null` or `void`, the event **will not** be terminated.
      * 
      * @param array $class The event object to handle data from
+     * @param Discord $discord The Discord object to handle data from
      * @return bool|void
      */
-    public function handle($class = null): ?bool
+    public function handle($class = null)
     {
         if ($class !== null && !isset($this->eventData)) {
             $this->eventData = $class;
@@ -65,13 +69,11 @@ abstract class EventAbstract
 
         foreach ($this->executableMethods as $method) {
             if (!method_exists($this, $method)) {
-                throw new EventFunctionNotFoundException(
-                    'The method ' . $method . ' does not exist.'
-                );
+                throw new EventFunctionNotFoundException($method);
             }
 
             try {
-                if ($this->{$method}() === true) {
+                if ($this->{$method}($this->eventData, $this->discord) === true) {
                     // If the method returns true, the event loop is terminated.
                     // log
                     return true;
