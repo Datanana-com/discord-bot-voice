@@ -6,6 +6,7 @@ namespace App\Exceptions;
 
 use Exception;
 use Throwable;
+
 /**
  * Exception used whenever an event doesn't exist.
  *

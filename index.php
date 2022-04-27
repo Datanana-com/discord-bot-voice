@@ -3,6 +3,7 @@
 require_once 'bootstrap.php';
 
 use App\Application;
+use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
 /**
