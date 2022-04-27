@@ -66,25 +66,10 @@ class Application
     {
         $events = $this->getFolderClasses('events');
 
-        $messageEvents = [
-            Event::MESSAGE_CREATE,
-            Event::MESSAGE_DELETE,
-            Event::MESSAGE_UPDATE,
-            Event::MESSAGE_DELETE_BULK,
-            Event::MESSAGE_REACTION_ADD,
-            Event::MESSAGE_REACTION_REMOVE,
-            Event::MESSAGE_REACTION_REMOVE_ALL,
-            Event::MESSAGE_REACTION_REMOVE_EMOJI,
-        ];
-
-        # Retrieves every event name from the constants from the \Discord\WebSockets\Event class
+        // Retrieves every event name from the constants from the \Discord\WebSockets\Event class
         $allowedEvents = (new ReflectionClass(Event::class))->getConstants();
 
         foreach ($events as $event) {
-            if ($event === 'EventAbstract') {
-                continue;
-            }
-
             // Transforms the event class to the event name
             // e.g. MessageCreate => MESSAGE_CREATE
             $eventClass = $event;
@@ -105,12 +90,31 @@ class Application
      * @param string $eventClass
      * @return void
      */
-    public function handleEvents($eventName, $eventClass)
+    public function handleEvents(string $eventName, string $eventClass): void
     {
-        $eventClass = new $eventClass();
+        $parentClass = get_parent_class();
+        $parentMethods = [];
+        if ($parentClass) {
+            $parentMethods = get_class_methods($parentClass);
+        }
 
-        $this->discord->on($eventName, function ($object) use ($eventClass) {
-            $eventClass->handle($object);
-        });
+        $childMethods = get_class_methods(self::class);
+
+        // Retrieves the childs methods by removing the parent methods
+        $childMethodsToRun = array_diff($childMethods, $parentMethods);
+
+        // Removes special methods
+        $childMethodsToRun = array_filter(
+            $childMethodsToRun,
+            fn ($method) => str_contains($method, '__') === false
+        );
+
+        /**
+         * @var EventAbstract $eventClass
+         */
+        $this->discord->on(
+            $eventName,
+            fn ($event) => (new $eventClass($eventName, $childMethodsToRun))->handle($event)
+        );
     }
 }
