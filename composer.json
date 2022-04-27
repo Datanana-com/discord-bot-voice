@@ -1,5 +1,6 @@
 {
     "require": {
+        "php": ">=8.0.18",
         "team-reflex/discord-php": "dev-master",
         "vlucas/phpdotenv": "^5.4",
         "symfony/var-dumper": "^5.4",
