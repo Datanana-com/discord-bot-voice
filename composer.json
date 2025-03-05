@@ -1,10 +1,9 @@
 {
     "require": {
         "php": ">=8.0.18",
-        "team-reflex/discord-php": "dev-master",
+        "team-reflex/discord-php": "^10.4",
         "vlucas/phpdotenv": "^5.4",
         "symfony/var-dumper": "^5.4",
-        "discord-php/slash": "^1.0",
         "illuminate/database": "^8.83"
     },
     "scripts": {
