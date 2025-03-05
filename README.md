@@ -31,7 +31,7 @@ $app->discord->run();
 ```
 
 ##### events/MessageCreate.php
-```
+```php
 <?php
 
 declare(strict_types=1);
