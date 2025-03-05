@@ -6,7 +6,7 @@ This project was made to make it easier to start a bot, without having the clogg
 ### Basic Example
 
 ##### index.php
-```
+```php
 
 <?php
 
