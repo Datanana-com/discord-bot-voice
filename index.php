@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 require_once 'bootstrap.php';
 
 use App\Application;
-use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
 /**

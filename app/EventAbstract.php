@@ -7,13 +7,28 @@ namespace App;
 use Exception;
 use App\Exceptions\EventFunctionNotFoundException;
 use Discord\Discord;
+use Discord\Parts\Channel\Message;
+use Discord\Parts\Channel\Reaction;
+use Psr\Log\LoggerInterface;
 
+/**
+ * @property Message $message
+ * @property Discord $discord
+ * @property Reaction $messageReaction
+ */
 abstract class EventAbstract
 {
     /**
+     * The event's logger
+     *
+     * @var LoggerInterface
+     */
+    protected LoggerInterface $log;
+
+    /**
      * Initializes the EventAbstract's data
      *
-     * @param object $eventData The event object to handle data from
+     * @param object|Message|Reaction $eventData The event object to handle data from
      * @param Discord $discord The Discord client
      * @param array $executableMethods The list of methods to execute
      */
@@ -21,11 +36,31 @@ abstract class EventAbstract
         public object $eventData,
         public Discord $discord,
         private array $executableMethods = [],
-    ) { }
+    ) {
+        $this->log = $discord->getLogger();
+    }
+
+    /**
+     * Executes the event's methods.
+     *
+     * @param string $name
+     * @return object|Message|Reaction|mixed
+     */
+    public function __get(string $name)
+    {
+        if (!property_exists($this, $name)) {
+            // The property passed to the class normally is from the Event's object
+            // e.g. MessageCreate returns a Message object, so we pass it to the $this->eventData
+            // property to get the object's properties, if it doesn't exist already
+            return $this->eventData;
+        }
+
+        return $this->{$name};
+    }
 
     /**
      * Retrieves the class' methods that are executable by the event.
-     * 
+     *
      * @return array
      */
     public function getExecutableMethods(): array
@@ -34,16 +69,22 @@ abstract class EventAbstract
     }
 
     /**
-     * Sets the class' methods that are executable by the event.
+     * Handles the user defined validations before the event's functions.
+     * When returned true, the event's functions will not be executed.
      *
-     * @param array $methods
-     * @return self
+     * @return bool|void|null
      */
-    public function setExecutableMethods(array $methods): self
+    public function before()
     {
-        $this->setExecutableMethods = $methods;
+    }
 
-        return $this;
+    /**
+     * Handles the user defined validations after the event's functions.
+     *
+     * @return void
+     */
+    public function after(): void
+    {
     }
 
     /**
@@ -51,8 +92,8 @@ abstract class EventAbstract
      * The return value of the function will determine if the event should be terminated.
      * 1. If the function returns `true` or `throws an exception`, the event **will** be terminated.
      * 2. If the function returns `false` or `null` or `void`, the event **will not** be terminated.
-     * 
-     * @param array $class The event object to handle data from
+     *
+     * @param EventAbstract|\Discord\WebSockets\Event $class The event object to handle data from
      * @param Discord $discord The Discord object to handle data from
      * @return bool|void
      */
@@ -63,7 +104,7 @@ abstract class EventAbstract
         }
 
         if ($this->executableMethods === []) {
-            // log warning - no executable methods were found
+            $this->log->warning('No executable methods were found for this event.');
             return false;
         }
 
@@ -73,13 +114,15 @@ abstract class EventAbstract
             }
 
             try {
-                if ($this->{$method}($this->eventData, $this->discord) === true) {
+                if ($this->{$method}() === true) {
                     // If the method returns true, the event loop is terminated.
-                    // log
+                    // And log its success.
+                    $this->log->info("Event \"{$method}\" was executed successfully.");
                     return true;
                 }
             } catch (Exception $e) {
-                // log
+                $this->log->error("Event \"{$method}\" failed with the following error: {$e->getMessage()}");
+                $this->log->error($e->getTraceAsString());
                 return false;
             }
         }
