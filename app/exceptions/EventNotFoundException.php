@@ -22,7 +22,7 @@ class EventNotFoundException extends Exception
      * @param string $event The event that doesn't exist.
      * @param integer $code
      * @param Throwable|null $previous
-     * 
+     *
      * @return mixed
      */
     public function __construct(string $event, int $code = 0, ?Throwable $previous = null)

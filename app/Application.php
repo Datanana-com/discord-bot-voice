@@ -10,12 +10,10 @@ use Discord\Discord;
 use ReflectionClass;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
-use App\Events\EventAbstract;
 use Discord\WebSockets\Event;
 use App\Exceptions\EventNotFoundException;
 use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
-use Discord\Repository\Interaction\GlobalCommandRepository;
 
 class Application
 {

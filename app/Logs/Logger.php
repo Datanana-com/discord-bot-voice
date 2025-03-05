@@ -6,7 +6,6 @@ namespace App\Logs;
 
 use Carbon\Carbon;
 use Monolog\Handler\StreamHandler;
-use Monolog\Handler\SyslogHandler;
 use Monolog\Level;
 use Psr\Log\LoggerInterface;
 use Monolog\Logger as Monolog;

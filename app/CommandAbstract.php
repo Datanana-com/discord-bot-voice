@@ -7,7 +7,6 @@ namespace App;
 use Discord\Discord;
 use Discord\Parts\Interactions\Interaction;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Console\Exception\MissingInputException;
 
 abstract class CommandAbstract
 {
