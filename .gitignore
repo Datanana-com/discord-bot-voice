@@ -1,3 +1,5 @@
 .env
 *.sqlite
 /vendor
+/logs
+/databases/*
