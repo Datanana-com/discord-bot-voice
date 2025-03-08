@@ -10,7 +10,7 @@ use Monolog\Level;
 use Psr\Log\LoggerInterface;
 use Monolog\Logger as Monolog;
 
-class Logger extends Monolog implements LoggerInterface
+final class Logger extends Monolog implements LoggerInterface
 {
     /**
      * @inheritDoc
